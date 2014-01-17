@@ -64,7 +64,7 @@ public class CalendarSettingsActivity extends PreferenceActivity {
         mAccounts = accounts;
         if (Utils.getTardis() + DateUtils.MINUTE_IN_MILLIS > System.currentTimeMillis()) {
             Header tardisHeader = new Header();
-            tardisHeader.title = getString(R.string.tardis);
+            tardisHeader.title = getString(R.string.preferences_experimental_category);
             tardisHeader.fragment = "com.android.calendar.OtherPreferences";
             target.add(tardisHeader);
         }
@@ -110,6 +110,12 @@ public class CalendarSettingsActivity extends PreferenceActivity {
             mHandler.removeCallbacks(mCheckAccounts);
         }
         super.onPause();
+    }
+
+    @Override
+    protected boolean isValidFragment(String fragmentName) {
+        // This activity is not exported so we can just approve everything
+        return true;
     }
 
     Runnable mCheckAccounts = new Runnable() {

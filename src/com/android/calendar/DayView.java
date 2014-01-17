@@ -1954,7 +1954,9 @@ public class DayView extends View implements View.OnCreateContextMenuListener,
             // Exception 2: if 12am is on screen, then allow the user to select
             // 12am before going up to the all-day event area.
             int daynum = mSelectionDay - mFirstJulianDay;
-            if (mMaxAlldayEvents > 0 && mEarliestStartHour[daynum] > mSelectionHour
+            if (daynum < mEarliestStartHour.length && daynum >= 0
+                    && mMaxAlldayEvents > 0
+                    && mEarliestStartHour[daynum] > mSelectionHour
                     && mFirstHour > 0 && mFirstHour < 8) {
                 mPrevSelectedEvent = null;
                 mSelectionAllday = true;
@@ -2028,6 +2030,7 @@ public class DayView extends View implements View.OnCreateContextMenuListener,
 //        mContext.startProgressSpinner();
         final ArrayList<Event> events = new ArrayList<Event>();
         mEventLoader.loadEventsInBackground(mNumDays, events, mFirstJulianDay, new Runnable() {
+
             public void run() {
                 boolean fadeinEvents = mFirstJulianDay != mLoadedFirstJulianDay;
                 mEvents = events;
@@ -3572,7 +3575,9 @@ public class DayView extends View implements View.OnCreateContextMenuListener,
             }
         }
 
-        if (totalLineHeight == 0 || rect.top > bottom || rect.top + totalLineHeight < top) {
+        // + 2 is small workaround when the font is slightly bigger then the rect. This will
+        // still allow the text to be shown without overflowing into the other all day rects.
+        if (totalLineHeight == 0 || rect.top > bottom || rect.top + totalLineHeight + 2 < top) {
             return;
         }
 
@@ -4424,6 +4429,7 @@ public class DayView extends View implements View.OnCreateContextMenuListener,
     }
 
     private class ContextMenuHandler implements MenuItem.OnMenuItemClickListener {
+
         public boolean onMenuItemClick(MenuItem item) {
             switch (item.getItemId()) {
                 case MENU_EVENT_VIEW: {
@@ -4756,6 +4762,7 @@ public class DayView extends View implements View.OnCreateContextMenuListener,
     // finger is lifted. Instead of stopping the scroll immediately,
     // the scroll continues to "free spin" and gradually slows down.
     private class ContinueScroll implements Runnable {
+
         public void run() {
             mScrolling = mScrolling && mScroller.computeScrollOffset();
             if (!mScrolling || mPaused) {
@@ -4857,6 +4864,7 @@ public class DayView extends View implements View.OnCreateContextMenuListener,
     }
 
     class DismissPopup implements Runnable {
+
         public void run() {
             // Protect against null-pointer exceptions
             if (mPopup != null) {
@@ -4866,6 +4874,7 @@ public class DayView extends View implements View.OnCreateContextMenuListener,
     }
 
     class UpdateCurrentTime implements Runnable {
+
         public void run() {
             long currentTime = System.currentTimeMillis();
             mCurrentTime.set(currentTime);

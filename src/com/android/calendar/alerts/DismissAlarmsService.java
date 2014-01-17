@@ -27,12 +27,21 @@ import android.os.IBinder;
 import android.provider.CalendarContract.CalendarAlerts;
 import android.support.v4.app.TaskStackBuilder;
 
+import android.util.Log;
 import com.android.calendar.EventInfoActivity;
+import com.android.calendar.alerts.GlobalDismissManager.AlarmId;
+
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * Service for asynchronously marking fired alarms as dismissed.
  */
 public class DismissAlarmsService extends IntentService {
+    private static final String TAG = "DismissAlarmsService";
+    public static final String SHOW_ACTION = "com.android.calendar.SHOW";
+    public static final String DISMISS_ACTION = "com.android.calendar.DISMISS";
+
     private static final String[] PROJECTION = new String[] {
             CalendarAlerts.STATE,
     };
@@ -49,26 +58,38 @@ public class DismissAlarmsService extends IntentService {
 
     @Override
     public void onHandleIntent(Intent intent) {
+        if (AlertService.DEBUG) {
+            Log.d(TAG, "onReceive: a=" + intent.getAction() + " " + intent.toString());
+        }
 
         long eventId = intent.getLongExtra(AlertUtils.EVENT_ID_KEY, -1);
         long eventStart = intent.getLongExtra(AlertUtils.EVENT_START_KEY, -1);
         long eventEnd = intent.getLongExtra(AlertUtils.EVENT_END_KEY, -1);
-        boolean showEvent = intent.getBooleanExtra(AlertUtils.SHOW_EVENT_KEY, false);
         long[] eventIds = intent.getLongArrayExtra(AlertUtils.EVENT_IDS_KEY);
+        long[] eventStarts = intent.getLongArrayExtra(AlertUtils.EVENT_STARTS_KEY);
         int notificationId = intent.getIntExtra(AlertUtils.NOTIFICATION_ID_KEY, -1);
+        List<AlarmId> alarmIds = new LinkedList<AlarmId>();
 
         Uri uri = CalendarAlerts.CONTENT_URI;
         String selection;
 
         // Dismiss a specific fired alarm if id is present, otherwise, dismiss all alarms
         if (eventId != -1) {
+            alarmIds.add(new AlarmId(eventId, eventStart));
             selection = CalendarAlerts.STATE + "=" + CalendarAlerts.STATE_FIRED + " AND " +
             CalendarAlerts.EVENT_ID + "=" + eventId;
-        } else if (eventIds != null && eventIds.length > 0) {
+        } else if (eventIds != null && eventIds.length > 0 &&
+                eventStarts != null && eventIds.length == eventStarts.length) {
             selection = buildMultipleEventsQuery(eventIds);
+            for (int i = 0; i < eventIds.length; i++) {
+                alarmIds.add(new AlarmId(eventIds[i], eventStarts[i]));
+            }
         } else {
+            // NOTE: I don't believe that this ever happens.
             selection = CalendarAlerts.STATE + "=" + CalendarAlerts.STATE_FIRED;
         }
+
+        GlobalDismissManager.dismissGlobally(getApplicationContext(), alarmIds);
 
         ContentResolver resolver = getContentResolver();
         ContentValues values = new ContentValues();
@@ -82,7 +103,7 @@ public class DismissAlarmsService extends IntentService {
             nm.cancel(notificationId);
         }
 
-        if (showEvent) {
+        if (SHOW_ACTION.equals(intent.getAction())) {
             // Show event on Calendar app by building an intent and task stack to start
             // EventInfoActivity with AllInOneActivity as the parent activity rooted to home.
             Intent i = AlertUtils.buildEventViewIntent(this, eventId, eventStart, eventEnd);
@@ -90,9 +111,6 @@ public class DismissAlarmsService extends IntentService {
             TaskStackBuilder.create(this)
                     .addParentStack(EventInfoActivity.class).addNextIntent(i).startActivities();
         }
-
-        // Stop this service
-        stopSelf();
     }
 
     private String buildMultipleEventsQuery(long[] eventIds) {
